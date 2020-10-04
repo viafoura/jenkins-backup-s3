@@ -22,7 +22,7 @@ class S3Backups(object):
     self.__bucket_prefix = prefix
 
   def __list_backups(self):
-    return sorted(map(lambda x: x.key, self.__b.list(prefix=self.__bucket_prefix)), reverse=True)
+    return sorted([x.key for x in self.__b.list(prefix=self.__bucket_prefix)], reverse=True)
 
   def backups(self):
     backups = []
@@ -84,7 +84,7 @@ def cli(ctx, bucket, bucket_prefix, bucket_region):
 def create(ctx, jenkins_home, tmp, tar, tar_opts, exclude_vcs, ignore_fail, exclude_archive, exclude_target,
             exclude_builds, exclude_workspace, exclude_maven, exclude_logs, exclude, dry_run):
   """Create a backup"""
-  print("Backing up %s to %s/%s..." % (jenkins_home, ctx.obj['BUCKET'], ctx.obj['BUCKET_PREFIX']))
+  print(("Backing up %s to %s/%s..." % (jenkins_home, ctx.obj['BUCKET'], ctx.obj['BUCKET_PREFIX'])))
 
   command = [tar, tar_opts, tmp, '-C', jenkins_home]
 
@@ -109,10 +109,10 @@ def create(ctx, jenkins_home, tmp, tar, tar_opts, exclude_vcs, ignore_fail, excl
 
   command.append('.')
 
-  print("Executing %s" % ' '.join(command))
+  print(("Executing %s" % ' '.join(command)))
   retval = call(command)
   if retval >= 2:
-    print("Creating tar archive failed with error code %s." % retval)
+    print(("Creating tar archive failed with error code %s." % retval))
     os.remove(tmp)
     sys.exit(retval)
 
@@ -120,25 +120,25 @@ def create(ctx, jenkins_home, tmp, tar, tar_opts, exclude_vcs, ignore_fail, excl
   backup_id = str(datetime.datetime.now()).replace(' ', '_')
 
   if dry_run:
-    print("Would have created backup id %s from %s" % (backup_id, tmp))
+    print(("Would have created backup id %s from %s" % (backup_id, tmp)))
   else:
     s3.backup(tmp, backup_id)
     os.remove(tmp)
-    print("Created backup id %s" % backup_id)
+    print(("Created backup id %s" % backup_id))
 
 
 @cli.command()
 @click.pass_context
 def list(ctx):
   """List available backups"""
-  print("All backups for %s/%s..." % (ctx.obj['BUCKET'], ctx.obj['BUCKET_PREFIX']))
+  print(("All backups for %s/%s..." % (ctx.obj['BUCKET'], ctx.obj['BUCKET_PREFIX'])))
 
   print("---------------------------")
   print('\n')
 
   s3 = S3Backups(ctx.obj['BUCKET'], ctx.obj['BUCKET_PREFIX'], ctx.obj['BUCKET_REGION'])
   for backup in s3.backups():
-    print backup
+    print(backup)
 
   print('\n')
 
@@ -147,11 +147,11 @@ def list(ctx):
 @click.argument('backup-id', required=True, type=click.STRING)
 def delete(ctx, backup_id):
   """Delete a backup by {backup-id}"""
-  print("Deleting backup %s in %s/%s..." % (backup_id, ctx.obj['BUCKET'], ctx.obj['BUCKET_PREFIX']))
+  print(("Deleting backup %s in %s/%s..." % (backup_id, ctx.obj['BUCKET'], ctx.obj['BUCKET_PREFIX'])))
 
   s3 = S3Backups(ctx.obj['BUCKET'], ctx.obj['BUCKET_PREFIX'], ctx.obj['BUCKET_REGION'])
   s3.delete(backup_id)
-  print("Deleted %s" % backup_id)
+  print(("Deleted %s" % backup_id))
 
 
 @cli.command()
@@ -160,14 +160,14 @@ def delete(ctx, backup_id):
 @click.option('--dry-run', type=click.BOOL, is_flag=True, help='Print backups marked for deletion but do not delete them')
 def prune(ctx, keep, dry_run):
   """Delete old up to {keep} number of backups"""
-  print("Pruning backups in %s/%s..." % (ctx.obj['BUCKET'], ctx.obj['BUCKET_PREFIX']))
+  print(("Pruning backups in %s/%s..." % (ctx.obj['BUCKET'], ctx.obj['BUCKET_PREFIX'])))
   s3 = S3Backups(ctx.obj['BUCKET'], ctx.obj['BUCKET_PREFIX'], ctx.obj['BUCKET_REGION'])
   for backup_id in s3.backups()[keep:]:
     if dry_run:
-      print("Would have deleted %s" % backup_id)
+      print(("Would have deleted %s" % backup_id))
     else:
       s3.delete(backup_id)
-      print("Deleted %s" % backup_id)
+      print(("Deleted %s" % backup_id))
 
 
 @cli.command()
@@ -187,19 +187,19 @@ def restore(ctx, jenkins_home, tmp, tar, backup_id, tar_opts, dry_run):
       print("No backups found.")
       return
 
-  print("Restoring %s from %s/%s/%s..." % (jenkins_home, ctx.obj['BUCKET'], ctx.obj['BUCKET_PREFIX'], backup_id))
+  print(("Restoring %s from %s/%s/%s..." % (jenkins_home, ctx.obj['BUCKET'], ctx.obj['BUCKET_PREFIX'], backup_id)))
 
   s3.restore(backup_id, tmp)
 
   if dry_run:
-    print('Would have restored %s from %s' % (jenkins_home, tmp))
+    print(('Would have restored %s from %s' % (jenkins_home, tmp)))
   else:
     command = [tar, tar_opts, tmp, '-C', jenkins_home]
 
-    print("Executing %s" % ' '.join(command))
+    print(("Executing %s" % ' '.join(command)))
     retval = call(command)
     if retval >= 2:
-      print("Restoring tar archive failed with error code %s." % retval)
+      print(("Restoring tar archive failed with error code %s." % retval))
     os.remove(tmp)
     sys.exit(retval)
 
